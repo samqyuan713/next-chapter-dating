@@ -1,0 +1,8 @@
+{
+	"appId": "com.nextchapter.dating",
+	"appName": "Next Chapter Dating",
+	"webDir": "dist",
+	"server": {
+		"androidScheme": "https"
+	}
+}
