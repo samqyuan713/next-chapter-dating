@@ -34,10 +34,14 @@ jobs:
       - name: Build Web Assets and Sync Capacitor
         run: npm run cap:build
 
+      - name: Remove Corrupt Gradle Wrapper Jar
+        run: rm -f android/gradle/wrapper/gradle-wrapper.jar
+
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.14.3'
+          validate-wrappers: false
 
       - name: Build Android Debug APK
         run: |
