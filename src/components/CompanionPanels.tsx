@@ -1,4 +1,5 @@
 import React, { useRef, useEffect, useState } from "react";
+import { apiFetch } from "../lib/api";
 import { 
   Compass, Search, MessageSquare, Coffee, BookOpen, Heart, MapPin, 
   Sparkles, Ruler, Scale, ChevronRight, Send, Loader2, CheckCircle2, 
@@ -1659,7 +1660,7 @@ export const MelodyVinylLounge: React.FC<MelodyVinylLoungeProps> = ({
         setStatusMessage(messages[msgIndex]);
       }, 2000);
 
-      const res = await fetch("/api/generate-melody", {
+      const res = await apiFetch("/api/generate-melody", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
