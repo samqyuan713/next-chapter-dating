@@ -20,6 +20,17 @@ const PORT = 3000;
 
 app.use(express.json());
 
+// CORS middleware for mobile native apps (Capacitor) and cross-origin clients
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(200);
+  }
+  next();
+});
+
 // Lazy-loaded GoogleGenAI client to prevent startup crash if GEMINI_API_KEY is missing
 let aiClient: GoogleGenAI | null = null;
 function getGeminiClient(): GoogleGenAI | null {
