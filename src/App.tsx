@@ -42,6 +42,7 @@ import { DiscoveryCompassPanel, CommunityCafePanel, ConversationCenterPanel, Sto
 import { auth, googleAuthProvider } from "./lib/firebase";
 import { onAuthStateChanged, signInWithPopup, signOut as fbSignOut, signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth";
 import { motion, AnimatePresence } from "motion/react";
+import { apiFetch } from "./lib/api";
 
 // Standard interests user can select
 const INTERESTS_PRESETS = [
@@ -194,6 +195,8 @@ export default function App() {
     isSubscribed?: boolean;
   } | null>(null);
 
+  const [hasOnboarded, setHasOnboarded] = useState<boolean>(false);
+
   const currentUser = fbUser ? (fbUser.displayName || fbUser.email || "Companion") : null;
 
   // Auth fields
@@ -226,7 +229,7 @@ export default function App() {
 
   const fetchUserProfile = async (token: string) => {
     try {
-      const res = await fetch("/api/profile", {
+      const res = await apiFetch("/api/profile", {
         headers: {
           "Authorization": `Bearer ${token}`
         }
@@ -242,6 +245,9 @@ export default function App() {
           relationshipGoal: data.profile.relationshipGoal || "Companionship & Shared Outings",
           isSubscribed: Boolean(data.profile.isSubscribed)
         });
+        if (data.profile.name && data.profile.name.trim() !== "") {
+          setHasOnboarded(true);
+        }
       } else {
         setUserProfile({
           name: "",
@@ -270,7 +276,7 @@ export default function App() {
   const saveUserProfile = async (updated: any) => {
     if (!idToken || !updated) return false;
     try {
-      const res = await fetch("/api/profile", {
+      const res = await apiFetch("/api/profile", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -289,6 +295,9 @@ export default function App() {
           relationshipGoal: data.profile.relationshipGoal || "Companionship & Shared Outings",
           isSubscribed: Boolean(data.profile.isSubscribed)
         });
+        if (data.profile.name && data.profile.name.trim() !== "") {
+          setHasOnboarded(true);
+        }
         return true;
       }
     } catch (err) {
@@ -297,8 +306,8 @@ export default function App() {
     return false;
   };
 
-  // Derived onboarding status
-  const isRegistered = fbUser !== null && userProfile !== null && userProfile.location !== "" && userProfile.location !== null;
+  // Derived onboarding status - check hasOnboarded or if name exists, so location edits never toggle views
+  const isRegistered = fbUser !== null && (hasOnboarded || (userProfile !== null && Boolean(userProfile.name && userProfile.name.trim() !== "")));
 
   // Debounced auto-save effect for onboarded users
   useEffect(() => {
@@ -369,7 +378,7 @@ export default function App() {
     if (!idToken) return;
     try {
       setIsUpgrading(true);
-      const res = await fetch("/api/subscribe", {
+      const res = await apiFetch("/api/subscribe", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -499,7 +508,7 @@ export default function App() {
 
       // 1. Fetch conversations from PostgreSQL
       try {
-        const res = await fetch(`/api/conversations/${matchId}`, {
+        const res = await apiFetch(`/api/conversations/${matchId}`, {
           headers: {
             "Authorization": `Bearer ${idToken}`
           }
@@ -517,7 +526,7 @@ export default function App() {
 
       // 2. Fetch compatibility report from PostgreSQL
       try {
-        const res = await fetch(`/api/compatibility/${matchId}`, {
+        const res = await apiFetch(`/api/compatibility/${matchId}`, {
           headers: {
             "Authorization": `Bearer ${idToken}`
           }
@@ -720,7 +729,7 @@ export default function App() {
     const fetchMatches = async () => {
       try {
         setLoadingMatches(true);
-        const res = await fetch("/api/matches");
+        const res = await apiFetch("/api/matches");
         const data = await res.json();
         if (data && data.matches) {
           setMatches(data.matches);
@@ -744,7 +753,7 @@ export default function App() {
     try {
       setIsPolishingBio(true);
       setBioPolishError("");
-      const response = await fetch("/api/generate-bio", {
+      const response = await apiFetch("/api/generate-bio", {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
@@ -797,7 +806,7 @@ export default function App() {
     try {
       setIsAnalyzingCompatibility(true);
       setCompatibilityError("");
-      const response = await fetch("/api/analyze-compatibility", {
+      const response = await apiFetch("/api/analyze-compatibility", {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
@@ -894,7 +903,7 @@ export default function App() {
     setIsCompanionTyping(true);
 
     try {
-      const response = await fetch("/api/chat", {
+      const response = await apiFetch("/api/chat", {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
@@ -945,7 +954,7 @@ export default function App() {
 
       if (data.text) {
         // Fetch full synced history from PostgreSQL
-        const historyRes = await fetch(`/api/conversations/${matchId}`, {
+        const historyRes = await apiFetch(`/api/conversations/${matchId}`, {
           headers: {
             "Authorization": `Bearer ${idToken}`
           }
@@ -1090,7 +1099,7 @@ export default function App() {
 
       const finalPrompt = storyPrompt === "custom" ? storyCustomPrompt : storyPrompt;
       
-      const res = await fetch("/api/generate-story", {
+      const res = await apiFetch("/api/generate-story", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -1805,7 +1814,7 @@ export default function App() {
                         if (userProfile.isSubscribed) {
                           // Allow quick cancel for evaluation/testing convenience
                           try {
-                            const res = await fetch("/api/subscribe", {
+                            const res = await apiFetch("/api/subscribe", {
                               method: "POST",
                               headers: {
                                 "Content-Type": "application/json",
