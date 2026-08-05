@@ -710,6 +710,13 @@ interface ConversationCenterProps {
   setChatInputValue: (val: string) => void;
   handleSendMessage: (textToSend?: string) => void;
   setActiveTab: (tab: string) => void;
+  cafePosts?: CafePost[];
+  newPostText?: string;
+  setNewPostText?: (val: string) => void;
+  isCommentReplying?: boolean;
+  handleLikePost?: (postId: string) => void;
+  handleCreatePost?: () => void;
+  initialSalonMode?: "dialogue" | "cafe";
 }
 
 export const ConversationCenterPanel: React.FC<ConversationCenterProps> = ({
@@ -724,10 +731,18 @@ export const ConversationCenterPanel: React.FC<ConversationCenterProps> = ({
   chatInputValue,
   setChatInputValue,
   handleSendMessage,
-  setActiveTab
+  setActiveTab,
+  cafePosts,
+  newPostText,
+  setNewPostText,
+  isCommentReplying,
+  handleLikePost,
+  handleCreatePost,
+  initialSalonMode = "dialogue"
 }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const currentMatchChatHistory = selectedMatch ? (conversations[selectedMatch.id] || []) : [];
+  const [salonMode, setSalonMode] = useState<"dialogue" | "cafe">(initialSalonMode);
   const [conversationMode, setConversationMode] = useState<"chat" | "melody">("chat");
   const [conversationsMobileTab, setConversationsMobileTab] = useState<"list" | "chat">("list");
 
@@ -748,7 +763,58 @@ export const ConversationCenterPanel: React.FC<ConversationCenterProps> = ({
   }, [selectedMatch?.id]);
 
   return (
-    <div id="conversations-pane" className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 animate-fade-in">
+    <div id="conversations-pane" className="space-y-6 animate-fade-in">
+      {/* Header Bar & Mode Toggle */}
+      <div className="bg-white border border-amber-100 rounded-3xl p-5 md:p-6 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="space-y-1">
+          <h2 className="text-xl md:text-2xl font-serif font-bold text-amber-950 flex items-center gap-2">
+            <MessageSquare className="w-6 h-6 text-rose-500" />
+            <span>Dialogue & Community Salon</span>
+          </h2>
+          <p className="text-xs text-amber-700 font-medium">
+            Connect privately with aligned companions or share daily thoughts in our community cafe.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-1.5 bg-amber-50/70 p-1.5 rounded-2xl border border-amber-100/80 self-stretch sm:self-auto shrink-0">
+          <button
+            type="button"
+            onClick={() => setSalonMode("dialogue")}
+            className={`flex-1 sm:flex-initial px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+              salonMode === "dialogue"
+                ? "bg-amber-950 text-white shadow-xs"
+                : "text-amber-800 hover:bg-white/60"
+            }`}
+          >
+            <MessageSquare className="w-3.5 h-3.5 text-rose-300" />
+            <span>Companion Chat</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setSalonMode("cafe")}
+            className={`flex-1 sm:flex-initial px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+              salonMode === "cafe"
+                ? "bg-amber-950 text-white shadow-xs"
+                : "text-amber-800 hover:bg-white/60"
+            }`}
+          >
+            <Coffee className="w-3.5 h-3.5 text-orange-400" />
+            <span>Community Cafe ☕</span>
+          </button>
+        </div>
+      </div>
+
+      {salonMode === "cafe" && cafePosts && setNewPostText && handleLikePost && handleCreatePost ? (
+        <CommunityCafePanel
+          cafePosts={cafePosts}
+          newPostText={newPostText || ""}
+          setNewPostText={setNewPostText}
+          isCommentReplying={Boolean(isCommentReplying)}
+          handleLikePost={handleLikePost}
+          handleCreatePost={handleCreatePost}
+        />
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
       {/* Mobile View Toggle Bar */}
       <div className="block lg:hidden col-span-1 bg-amber-50/70 p-1 rounded-2xl border border-amber-100/60 shadow-xs mb-1">
         <div className="grid grid-cols-2 gap-1 text-center">
@@ -1032,6 +1098,8 @@ export const ConversationCenterPanel: React.FC<ConversationCenterProps> = ({
         )}
       </div>
     </div>
+  )}
+</div>
   );
 };
 
