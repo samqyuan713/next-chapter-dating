@@ -221,6 +221,7 @@ export default function App() {
         setFbUser(null);
         setIdToken(null);
         setUserProfile(null);
+        setHasOnboarded(false);
       }
       setLoadingAuth(false);
     });
@@ -247,6 +248,8 @@ export default function App() {
         });
         if (data.profile.name && data.profile.name.trim() !== "") {
           setHasOnboarded(true);
+        } else {
+          setHasOnboarded(false);
         }
       } else {
         setUserProfile({
@@ -258,6 +261,7 @@ export default function App() {
           relationshipGoal: "Companionship & Shared Outings",
           isSubscribed: false
         });
+        setHasOnboarded(false);
       }
     } catch (err) {
       console.error("Failed to load user profile:", err);
@@ -270,6 +274,7 @@ export default function App() {
         relationshipGoal: "Companionship & Shared Outings",
         isSubscribed: false
       });
+      setHasOnboarded(false);
     }
   };
 
@@ -295,9 +300,7 @@ export default function App() {
           relationshipGoal: data.profile.relationshipGoal || "Companionship & Shared Outings",
           isSubscribed: Boolean(data.profile.isSubscribed)
         });
-        if (data.profile.name && data.profile.name.trim() !== "") {
-          setHasOnboarded(true);
-        }
+        setHasOnboarded(true);
         return true;
       }
     } catch (err) {
@@ -306,8 +309,8 @@ export default function App() {
     return false;
   };
 
-  // Derived onboarding status - check hasOnboarded or if name exists, so location edits never toggle views
-  const isRegistered = fbUser !== null && (hasOnboarded || (userProfile !== null && Boolean(userProfile.name && userProfile.name.trim() !== "")));
+  // Derived onboarding status - strictly relies on completed onboarding flag so live input edits never switch views
+  const isRegistered = fbUser !== null && hasOnboarded;
 
   // Debounced auto-save effect for onboarded users
   useEffect(() => {
@@ -345,6 +348,13 @@ export default function App() {
 
   // Active view tabs: 'gardens' (Browse matches), 'my_profile' (Edit personal bio), 'search' (Search partners), 'cafe', 'conversations', 'compass', 'storyroom'
   const [activeTab, setActiveTab] = useState<"gardens" | "my_profile" | "search" | "cafe" | "conversations" | "compass" | "storyroom">("gardens");
+  const [exploreSubTab, setExploreSubTab] = useState<"deck" | "compass">("deck");
+
+  useEffect(() => {
+    if (activeTab === "compass" || activeTab === "search") {
+      setExploreSubTab("compass");
+    }
+  }, [activeTab]);
 
   // Partner Search States
   const [searchGender, setSearchGender] = useState<string>("All");
@@ -710,6 +720,7 @@ export default function App() {
     setFbUser(null);
     setIdToken(null);
     setUserProfile(null);
+    setHasOnboarded(false);
     setIsSandboxMode(false);
     setSelectedMatch(null);
     setActiveTab("gardens");
@@ -1534,49 +1545,25 @@ export default function App() {
                 id="tab-gardens"
                 onClick={() => setActiveTab("gardens")}
                 className={`px-3 py-1.5 rounded-lg text-xs md:text-sm font-semibold transition-all duration-300 flex items-center gap-1.5 cursor-pointer shrink-0 ${
-                  activeTab === "gardens"
+                  activeTab === "gardens" || activeTab === "compass" || activeTab === "search"
                     ? "bg-white text-amber-900 shadow-sm border border-amber-100"
                     : "text-amber-800 hover:text-amber-900 hover:bg-white/40"
                 }`}
               >
                 <Compass className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Explore Companions</span>
-              </button>
-              <button
-                id="tab-compass"
-                onClick={() => setActiveTab("compass")}
-                className={`px-3 py-1.5 rounded-lg text-xs md:text-sm font-semibold transition-all duration-300 flex items-center gap-1.5 cursor-pointer shrink-0 ${
-                  activeTab === "compass" || activeTab === "search"
-                    ? "bg-white text-amber-900 shadow-sm border border-amber-100"
-                    : "text-amber-800 hover:text-amber-900 hover:bg-white/40"
-                }`}
-              >
-                <SlidersHorizontal className="w-3.5 h-3.5 text-amber-600" />
-                <span>Discovery Compass</span>
-              </button>
-              <button
-                id="tab-cafe"
-                onClick={() => setActiveTab("cafe")}
-                className={`px-3 py-1.5 rounded-lg text-xs md:text-sm font-semibold transition-all duration-300 flex items-center gap-1.5 cursor-pointer shrink-0 ${
-                  activeTab === "cafe"
-                    ? "bg-white text-amber-900 shadow-sm border border-amber-100"
-                    : "text-amber-800 hover:text-amber-900 hover:bg-white/40"
-                }`}
-              >
-                <Coffee className="w-3.5 h-3.5 text-orange-500" />
-                <span>Community Cafe</span>
+                <span>Explore & Compass</span>
               </button>
               <button
                 id="tab-conversations"
                 onClick={() => setActiveTab("conversations")}
                 className={`px-3 py-1.5 rounded-lg text-xs md:text-sm font-semibold transition-all duration-300 flex items-center gap-1.5 cursor-pointer shrink-0 ${
-                  activeTab === "conversations"
+                  activeTab === "conversations" || activeTab === "cafe"
                     ? "bg-white text-amber-900 shadow-sm border border-amber-100"
                     : "text-amber-800 hover:text-amber-900 hover:bg-white/40"
                 }`}
               >
                 <MessageSquare className="w-3.5 h-3.5 text-rose-500" />
-                <span>Conversation Center</span>
+                <span>Dialogue & Cafe</span>
               </button>
               <button
                 id="tab-storyroom"
@@ -1931,43 +1918,7 @@ export default function App() {
               </div>
             </div>
           </div>
-        ) : activeTab === "compass" || activeTab === "search" ? (
-          <DiscoveryCompassPanel
-            matches={matches}
-            compatibilityReports={compatibilityReports}
-            searchKeyword={searchKeyword}
-            setSearchKeyword={setSearchKeyword}
-            searchGender={searchGender}
-            setSearchGender={setSearchGender}
-            searchAgeMin={searchAgeMin}
-            setSearchAgeMin={setSearchAgeMin}
-            searchAgeMax={searchAgeMax}
-            setSearchAgeMax={setSearchAgeMax}
-            searchHeightMin={searchHeightMin}
-            setSearchHeightMin={setSearchHeightMin}
-            searchHeightMax={searchHeightMax}
-            setSearchHeightMax={setSearchHeightMax}
-            searchWeightMin={searchWeightMin}
-            setSearchWeightMin={setSearchWeightMin}
-            searchWeightMax={searchWeightMax}
-            setSearchWeightMax={setSearchWeightMax}
-            searchSelectedHobbies={searchSelectedHobbies}
-            setSearchSelectedHobbies={setSearchSelectedHobbies}
-            compassFocus={compassFocus}
-            setCompassFocus={setCompassFocus}
-            setSelectedMatch={setSelectedMatch}
-            setActiveTab={setActiveTab}
-          />
-        ) : activeTab === "cafe" ? (
-          <CommunityCafePanel
-            cafePosts={cafePosts}
-            newPostText={newPostText}
-            setNewPostText={setNewPostText}
-            isCommentReplying={isCommentReplying}
-            handleLikePost={handleLikePost}
-            handleCreatePost={handleCreatePost}
-          />
-        ) : activeTab === "conversations" ? (
+        ) : activeTab === "conversations" || activeTab === "cafe" ? (
           <ConversationCenterPanel
             matches={matches}
             conversations={conversations}
@@ -1981,6 +1932,13 @@ export default function App() {
             setChatInputValue={setChatInputValue}
             handleSendMessage={handleSendMessage}
             setActiveTab={setActiveTab}
+            cafePosts={cafePosts}
+            newPostText={newPostText}
+            setNewPostText={setNewPostText}
+            isCommentReplying={isCommentReplying}
+            handleLikePost={handleLikePost}
+            handleCreatePost={handleCreatePost}
+            initialSalonMode={activeTab === "cafe" ? "cafe" : "dialogue"}
           />
         ) : activeTab === "storyroom" ? (
           <StoryroomPanel
@@ -2000,19 +1958,76 @@ export default function App() {
             handleDeleteSavedStory={handleDeleteSavedStory}
           />
         ) : (
-          /* DEDICATED COMPANION DISCOVERY SWIPE DECK */
-          <div id="browse-pane" className="animate-fade-in space-y-4 max-w-xl mx-auto w-full px-2 py-2">
-            
-            {/* Header Title Banner */}
-            <div className="bg-[#FDFCFB]/90 px-6 py-4 rounded-3xl border border-amber-100/80 shadow-xs text-center">
-              <div className="inline-flex items-center justify-center p-2.5 bg-amber-50 text-emerald-700 rounded-2xl mb-1.5 border border-amber-100/60">
-                <Compass className="w-5 h-5" />
+          /* MERGED EXPLORE & COMPASS VIEW */
+          <div id="browse-pane" className="animate-fade-in space-y-6 w-full">
+            {/* Header Title Banner with Sub-tab View Toggle */}
+            <div className="bg-white border border-amber-100 rounded-3xl p-5 md:p-6 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="space-y-1">
+                <h2 className="text-xl md:text-2xl font-serif font-bold text-amber-950 flex items-center gap-2">
+                  <Compass className="w-6 h-6 text-emerald-600" />
+                  <span>Explore & Compass</span>
+                </h2>
+                <p className="text-xs text-amber-700 font-medium">
+                  Browse matching companion cards or fine-tune partner filters using the Discovery Compass.
+                </p>
               </div>
-              <h2 className="font-serif font-bold text-xl text-amber-950">Companion Discovery Deck</h2>
-              <p className="text-xs text-amber-700/80 mt-0.5 max-w-sm mx-auto leading-relaxed">
-                Discover matching companions sharing your chapter of life, hobbies, and relationship aspirations.
-              </p>
+
+              <div className="flex items-center gap-1.5 bg-amber-50/70 p-1.5 rounded-2xl border border-amber-100/80 self-stretch sm:self-auto shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setExploreSubTab("deck")}
+                  className={`flex-1 sm:flex-initial px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                    exploreSubTab === "deck"
+                      ? "bg-amber-950 text-white shadow-xs"
+                      : "text-amber-800 hover:bg-white/60"
+                  }`}
+                >
+                  <span>🎴 Companion Cards</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setExploreSubTab("compass")}
+                  className={`flex-1 sm:flex-initial px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                    exploreSubTab === "compass"
+                      ? "bg-amber-950 text-white shadow-xs"
+                      : "text-amber-800 hover:bg-white/60"
+                  }`}
+                >
+                  <SlidersHorizontal className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Discovery Compass</span>
+                </button>
+              </div>
             </div>
+
+            {exploreSubTab === "compass" ? (
+              <DiscoveryCompassPanel
+                matches={matches}
+                compatibilityReports={compatibilityReports}
+                searchKeyword={searchKeyword}
+                setSearchKeyword={setSearchKeyword}
+                searchGender={searchGender}
+                setSearchGender={setSearchGender}
+                searchAgeMin={searchAgeMin}
+                setSearchAgeMin={setSearchAgeMin}
+                searchAgeMax={searchAgeMax}
+                setSearchAgeMax={setSearchAgeMax}
+                searchHeightMin={searchHeightMin}
+                setSearchHeightMin={setSearchHeightMin}
+                searchHeightMax={searchHeightMax}
+                setSearchHeightMax={setSearchHeightMax}
+                searchWeightMin={searchWeightMin}
+                setSearchWeightMin={setSearchWeightMin}
+                searchWeightMax={searchWeightMax}
+                setSearchWeightMax={setSearchWeightMax}
+                searchSelectedHobbies={searchSelectedHobbies}
+                setSearchSelectedHobbies={setSearchSelectedHobbies}
+                compassFocus={compassFocus}
+                setCompassFocus={setCompassFocus}
+                setSelectedMatch={setSelectedMatch}
+                setActiveTab={setActiveTab}
+              />
+            ) : (
+              <div className="max-w-xl mx-auto space-y-4 px-2 py-2">
 
             {loadingMatches ? (
               <div className="py-20 flex flex-col items-center justify-center gap-3">
@@ -2326,6 +2341,8 @@ export default function App() {
             )}
           </div>
         )}
+      </div>
+        )}
       </main>
 
       {/* MOBILE BOTTOM NAVIGATION BAR */}
@@ -2334,43 +2351,23 @@ export default function App() {
           type="button"
           onClick={() => setActiveTab("gardens")}
           className={`flex flex-col items-center justify-center flex-1 py-1 text-center cursor-pointer transition-all ${
-            activeTab === "gardens" ? "text-amber-950 font-bold" : "text-amber-700/70 hover:text-amber-900"
+            activeTab === "gardens" || activeTab === "compass" || activeTab === "search" ? "text-amber-950 font-bold" : "text-amber-700/70 hover:text-amber-900"
           }`}
         >
-          <Compass className={`w-4.5 h-4.5 ${activeTab === "gardens" ? "text-emerald-600 scale-110" : "text-amber-600/70"} transition-all`} />
-          <span className="text-[9px] mt-1 font-semibold tracking-tight">Explore</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab("compass")}
-          className={`flex flex-col items-center justify-center flex-1 py-1 text-center cursor-pointer transition-all ${
-            activeTab === "compass" || activeTab === "search" ? "text-amber-950 font-bold" : "text-amber-700/70 hover:text-amber-900"
-          }`}
-        >
-          <SlidersHorizontal className={`w-4.5 h-4.5 ${activeTab === "compass" || activeTab === "search" ? "text-amber-600 scale-110" : "text-amber-600/70"} transition-all`} />
-          <span className="text-[9px] mt-1 font-semibold tracking-tight">Compass</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab("cafe")}
-          className={`flex flex-col items-center justify-center flex-1 py-1 text-center cursor-pointer transition-all ${
-            activeTab === "cafe" ? "text-amber-950 font-bold" : "text-amber-700/70 hover:text-amber-900"
-          }`}
-        >
-          <Coffee className={`w-4.5 h-4.5 ${activeTab === "cafe" ? "text-orange-500 scale-110" : "text-amber-600/70"} transition-all`} />
-          <span className="text-[9px] mt-1 font-semibold tracking-tight">Cafe</span>
+          <Compass className={`w-4.5 h-4.5 ${activeTab === "gardens" || activeTab === "compass" || activeTab === "search" ? "text-emerald-600 scale-110" : "text-amber-600/70"} transition-all`} />
+          <span className="text-[9px] mt-1 font-semibold tracking-tight">Explore & Compass</span>
         </button>
         <button
           type="button"
           onClick={() => setActiveTab("conversations")}
           className={`flex flex-col items-center justify-center flex-1 py-1 text-center cursor-pointer transition-all ${
-            activeTab === "conversations" ? "text-amber-950 font-bold" : "text-amber-700/70 hover:text-amber-900"
+            activeTab === "conversations" || activeTab === "cafe" ? "text-amber-950 font-bold" : "text-amber-700/70 hover:text-amber-900"
           }`}
         >
           <div className="relative">
-            <MessageSquare className={`w-4.5 h-4.5 ${activeTab === "conversations" ? "text-rose-500 scale-110" : "text-amber-600/70"} transition-all`} />
+            <MessageSquare className={`w-4.5 h-4.5 ${activeTab === "conversations" || activeTab === "cafe" ? "text-rose-500 scale-110" : "text-amber-600/70"} transition-all`} />
           </div>
-          <span className="text-[9px] mt-1 font-semibold tracking-tight">Dialogue</span>
+          <span className="text-[9px] mt-1 font-semibold tracking-tight">Dialogue & Cafe</span>
         </button>
         <button
           type="button"
