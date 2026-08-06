@@ -248,12 +248,11 @@ export default function App() {
         });
         if (data.profile.name && data.profile.name.trim() !== "") {
           setHasOnboarded(true);
-        } else {
-          setHasOnboarded(false);
         }
       } else {
-        setUserProfile({
-          name: "",
+        // Keep existing profile if present, or set fallback
+        setUserProfile((prev) => prev || {
+          name: fbUser?.displayName || "Companion",
           age: 60,
           location: "",
           interests: [],
@@ -261,12 +260,11 @@ export default function App() {
           relationshipGoal: "Companionship & Shared Outings",
           isSubscribed: false
         });
-        setHasOnboarded(false);
       }
     } catch (err) {
       console.error("Failed to load user profile:", err);
-      setUserProfile({
-        name: "",
+      setUserProfile((prev) => prev || {
+        name: fbUser?.displayName || "Companion",
         age: 60,
         location: "",
         interests: [],
@@ -274,12 +272,35 @@ export default function App() {
         relationshipGoal: "Companionship & Shared Outings",
         isSubscribed: false
       });
-      setHasOnboarded(false);
     }
   };
 
   const saveUserProfile = async (updated: any) => {
-    if (!idToken || !updated) return false;
+    if (!updated) return false;
+
+    // Optimistically update local profile and onboarding state
+    setUserProfile((prev) => {
+      const nextProfile = {
+        name: updated.name !== undefined ? updated.name : (prev?.name || ""),
+        age: updated.age !== undefined ? updated.age : (prev?.age || 60),
+        location: updated.location !== undefined ? updated.location : (prev?.location || ""),
+        interests: Array.isArray(updated.interests) ? updated.interests : (prev?.interests || []),
+        bio: updated.bio !== undefined ? updated.bio : (prev?.bio || ""),
+        relationshipGoal: updated.relationshipGoal !== undefined ? updated.relationshipGoal : (prev?.relationshipGoal || "Companionship & Shared Outings"),
+        isSubscribed: updated.isSubscribed !== undefined ? Boolean(updated.isSubscribed) : Boolean(prev?.isSubscribed)
+      };
+      if (nextProfile.name && nextProfile.name.trim() !== "") {
+        setHasOnboarded(true);
+      }
+      return nextProfile;
+    });
+
+    if (updated.name && updated.name.trim() !== "") {
+      setHasOnboarded(true);
+    }
+
+    if (!idToken) return true;
+
     try {
       const res = await apiFetch("/api/profile", {
         method: "POST",
@@ -292,12 +313,12 @@ export default function App() {
       const data = await res.json();
       if (data && data.profile) {
         setUserProfile({
-          name: data.profile.name || "",
-          age: data.profile.age || 60,
-          location: data.profile.location || "",
-          interests: Array.isArray(data.profile.interests) ? data.profile.interests : [],
-          bio: data.profile.bio || "",
-          relationshipGoal: data.profile.relationshipGoal || "Companionship & Shared Outings",
+          name: data.profile.name || updated.name || "",
+          age: data.profile.age || updated.age || 60,
+          location: data.profile.location !== undefined ? data.profile.location : (updated.location || ""),
+          interests: Array.isArray(data.profile.interests) ? data.profile.interests : (updated.interests || []),
+          bio: data.profile.bio !== undefined ? data.profile.bio : (updated.bio || ""),
+          relationshipGoal: data.profile.relationshipGoal || updated.relationshipGoal || "Companionship & Shared Outings",
           isSubscribed: Boolean(data.profile.isSubscribed)
         });
         setHasOnboarded(true);
@@ -306,11 +327,11 @@ export default function App() {
     } catch (err) {
       console.error("Failed to save user profile:", err);
     }
-    return false;
+    return true;
   };
 
-  // Derived onboarding status - strictly relies on completed onboarding flag so live input edits never switch views
-  const isRegistered = fbUser !== null && hasOnboarded;
+  // Derived onboarding status - relies on completed onboarding flag or non-empty profile name
+  const isRegistered = fbUser !== null && (hasOnboarded || Boolean(userProfile?.name && userProfile.name.trim() !== ""));
 
   // Debounced auto-save effect for onboarded users
   useEffect(() => {
@@ -1461,7 +1482,11 @@ export default function App() {
                       bio: "A retired architect who cherishes slow walks alongside lakeside docks, classical string melodies, and good conversational exchange over coffee. Seeking a genuine soul to explore matching artistic and natural paths in our life's next beautiful chapters.",
                       relationshipGoal: "Companionship & Shared Outings"
                     };
-                    saveUserProfile(defaultProfile);
+                    setUserProfile(defaultProfile);
+                    setHasOnboarded(true);
+                    setActiveTab("gardens");
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                    saveUserProfile(defaultProfile).catch(console.error);
                   }}
                   className="text-xs text-amber-700/80 hover:text-amber-950 underline font-medium transition-all cursor-pointer"
                 >
@@ -1484,7 +1509,10 @@ export default function App() {
                         alert("Please enter your name to complete onboarding.");
                         return;
                       }
-                      saveUserProfile(userProfile);
+                      setHasOnboarded(true);
+                      setActiveTab("gardens");
+                      window.scrollTo({ top: 0, behavior: "smooth" });
+                      saveUserProfile(userProfile).catch(console.error);
                     }}
                     className="px-8 py-3.5 bg-amber-950 hover:bg-amber-900 text-white font-semibold rounded-2xl transition-all shadow-md text-xs cursor-pointer flex items-center justify-center gap-2"
                   >
@@ -1836,11 +1864,11 @@ export default function App() {
                   <p className="text-xs text-amber-600 font-medium">
                     Changes are automatically saved, or you can force-save with the button.
                   </p>
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2.5 flex-wrap">
                     {profileSaveSuccess && (
-                      <span className="text-xs text-emerald-700 font-bold animate-pulse flex items-center gap-1">
+                      <span className="text-xs text-emerald-700 font-bold animate-pulse flex items-center gap-1 mr-1">
                         <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                        <span>Saved successfully!</span>
+                        <span>Saved!</span>
                       </span>
                     )}
                     <button
@@ -1852,10 +1880,24 @@ export default function App() {
                           setTimeout(() => setProfileSaveSuccess(false), 3000);
                         }
                       }}
-                      className="px-6 py-2.5 bg-amber-950 hover:bg-amber-900 text-white font-bold rounded-xl transition-all shadow-sm text-xs cursor-pointer flex items-center justify-center gap-2"
+                      className="px-5 py-2.5 bg-amber-950 hover:bg-amber-900 text-white font-bold rounded-xl transition-all shadow-sm text-xs cursor-pointer flex items-center justify-center gap-1.5"
                     >
                       <Save className="w-4 h-4" />
                       <span>Save Settings</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setProfileSaveSuccess(true);
+                        setTimeout(() => setProfileSaveSuccess(false), 3000);
+                        setActiveTab("gardens");
+                        window.scrollTo({ top: 0, behavior: "smooth" });
+                        saveUserProfile(userProfile).catch(console.error);
+                      }}
+                      className="px-5 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-xl transition-all shadow-sm text-xs cursor-pointer flex items-center justify-center gap-1.5"
+                    >
+                      <Compass className="w-4 h-4 text-emerald-200" />
+                      <span>Save & Go to Discovery</span>
                     </button>
                   </div>
                 </div>
@@ -1909,10 +1951,18 @@ export default function App() {
 
                 <div className="mt-8 pt-5 border-t border-amber-200/40 text-center">
                   <button
-                    onClick={() => setActiveTab("gardens")}
-                    className="w-full py-3 px-4 rounded-xl bg-amber-950 hover:bg-amber-900 text-white font-semibold transition-all text-xs cursor-pointer shadow-sm"
+                    type="button"
+                    onClick={() => {
+                      setProfileSaveSuccess(true);
+                      setTimeout(() => setProfileSaveSuccess(false), 3000);
+                      setActiveTab("gardens");
+                      window.scrollTo({ top: 0, behavior: "smooth" });
+                      saveUserProfile(userProfile).catch(console.error);
+                    }}
+                    className="w-full py-3 px-4 rounded-xl bg-amber-950 hover:bg-amber-900 text-white font-semibold transition-all text-xs cursor-pointer shadow-sm flex items-center justify-center gap-2"
                   >
-                    Look for Alignments Now
+                    <Compass className="w-4 h-4 text-emerald-400" />
+                    <span>Save & Look for Alignments Now</span>
                   </button>
                 </div>
               </div>
@@ -2349,7 +2399,10 @@ export default function App() {
       <nav id="mobile-bottom-nav" className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#FAF7F2]/95 backdrop-blur-md border-t border-amber-100/80 px-2 py-2 flex justify-around items-center shadow-lg animate-fade-in select-none">
         <button
           type="button"
-          onClick={() => setActiveTab("gardens")}
+          onClick={() => {
+            setActiveTab("gardens");
+            window.scrollTo({ top: 0, behavior: "smooth" });
+          }}
           className={`flex flex-col items-center justify-center flex-1 py-1 text-center cursor-pointer transition-all ${
             activeTab === "gardens" || activeTab === "compass" || activeTab === "search" ? "text-amber-950 font-bold" : "text-amber-700/70 hover:text-amber-900"
           }`}
@@ -2359,7 +2412,10 @@ export default function App() {
         </button>
         <button
           type="button"
-          onClick={() => setActiveTab("conversations")}
+          onClick={() => {
+            setActiveTab("conversations");
+            window.scrollTo({ top: 0, behavior: "smooth" });
+          }}
           className={`flex flex-col items-center justify-center flex-1 py-1 text-center cursor-pointer transition-all ${
             activeTab === "conversations" || activeTab === "cafe" ? "text-amber-950 font-bold" : "text-amber-700/70 hover:text-amber-900"
           }`}
@@ -2371,7 +2427,10 @@ export default function App() {
         </button>
         <button
           type="button"
-          onClick={() => setActiveTab("storyroom")}
+          onClick={() => {
+            setActiveTab("storyroom");
+            window.scrollTo({ top: 0, behavior: "smooth" });
+          }}
           className={`flex flex-col items-center justify-center flex-1 py-1 text-center cursor-pointer transition-all ${
             activeTab === "storyroom" ? "text-amber-950 font-bold" : "text-amber-700/70 hover:text-amber-900"
           }`}
@@ -2381,7 +2440,10 @@ export default function App() {
         </button>
         <button
           type="button"
-          onClick={() => setActiveTab("my_profile")}
+          onClick={() => {
+            setActiveTab("my_profile");
+            window.scrollTo({ top: 0, behavior: "smooth" });
+          }}
           className={`flex flex-col items-center justify-center flex-1 py-1 text-center cursor-pointer transition-all ${
             activeTab === "my_profile" ? "text-amber-950 font-bold" : "text-amber-700/70 hover:text-amber-900"
           }`}
