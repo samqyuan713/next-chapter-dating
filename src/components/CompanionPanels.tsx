@@ -103,22 +103,44 @@ export const DiscoveryCompassPanel: React.FC<DiscoveryCompassProps> = ({
   setActiveTab
 }) => {
   const filteredCompanions = matches.filter((companion) => {
-    if (searchGender !== "All" && companion.gender !== searchGender) return false;
-    if (searchKeyword.trim()) {
+    if (searchGender && searchGender !== "All" && companion.gender !== searchGender) return false;
+
+    if (searchKeyword && searchKeyword.trim()) {
       const keyword = searchKeyword.toLowerCase().trim();
-      const nameMatch = companion.name.toLowerCase().includes(keyword);
-      const bioMatch = companion.bio.toLowerCase().includes(keyword);
+      const nameMatch = companion.name?.toLowerCase().includes(keyword) || false;
+      const bioMatch = companion.bio?.toLowerCase().includes(keyword) || false;
       const occMatch = companion.occupation?.toLowerCase().includes(keyword) || false;
-      const locMatch = companion.location.toLowerCase().includes(keyword);
-      if (!nameMatch && !bioMatch && !occMatch && !locMatch) return false;
+      const locMatch = companion.location?.toLowerCase().includes(keyword) || false;
+      const themeMatch = companion.chapterTheme?.toLowerCase().includes(keyword) || false;
+      const goalMatch = companion.relationshipGoal?.toLowerCase().includes(keyword) || false;
+      const interestMatch = companion.interests?.some((i) => i.toLowerCase().includes(keyword)) || false;
+      const valueMatch = companion.values?.some((v) => v.toLowerCase().includes(keyword)) || false;
+
+      if (!nameMatch && !bioMatch && !occMatch && !locMatch && !themeMatch && !goalMatch && !interestMatch && !valueMatch) {
+        return false;
+      }
     }
-    if (companion.age < searchAgeMin || companion.age > searchAgeMax) return false;
-    if (companion.height !== undefined && (companion.height < searchHeightMin || companion.height > searchHeightMax)) return false;
-    if (companion.weight !== undefined && (companion.weight < searchWeightMin || companion.weight > searchWeightMax)) return false;
-    if (searchSelectedHobbies.length > 0) {
-      const matchesAny = searchSelectedHobbies.some((hobby) => companion.interests.includes(hobby));
+
+    if (companion.age !== undefined && (companion.age < searchAgeMin || companion.age > searchAgeMax)) return false;
+
+    if (companion.height && companion.height > 0 && (companion.height < searchHeightMin || companion.height > searchHeightMax)) return false;
+
+    if (companion.weight && companion.weight > 0 && (companion.weight < searchWeightMin || companion.weight > searchWeightMax)) return false;
+
+    if (searchSelectedHobbies && searchSelectedHobbies.length > 0) {
+      const matchesAny = searchSelectedHobbies.some((selectedHobby) => {
+        const normSelected = selectedHobby.toLowerCase().trim();
+        const tokens = normSelected.split(/&|,|\/|\s+and\s+/).map((t) => t.trim()).filter((t) => t.length >= 3);
+
+        return companion.interests?.some((userInterest) => {
+          const normInterest = userInterest.toLowerCase().trim();
+          if (normInterest.includes(normSelected) || normSelected.includes(normInterest)) return true;
+          return tokens.some((token) => normInterest.includes(token) || token.includes(normInterest));
+        });
+      });
       if (!matchesAny) return false;
     }
+
     return true;
   });
 
@@ -126,7 +148,7 @@ export const DiscoveryCompassPanel: React.FC<DiscoveryCompassProps> = ({
     setSearchGender("All");
     setSearchAgeMin(35);
     setSearchAgeMax(85);
-    setSearchHeightMin(60);
+    setSearchHeightMin(54);
     setSearchHeightMax(78);
     setSearchWeightMin(100);
     setSearchWeightMax(240);
@@ -188,8 +210,8 @@ export const DiscoveryCompassPanel: React.FC<DiscoveryCompassProps> = ({
             type="button"
             onClick={() => {
               setCompassFocus("intellectual");
-              setSearchKeyword("professor");
-              setSearchSelectedHobbies(["Book Clubs & Literature", "Creative Writing", "Art History & Museums"]);
+              setSearchKeyword("");
+              setSearchSelectedHobbies(["Book Clubs & Literature", "Art History & Museums", "Classical Music"]);
             }}
             className={`p-3.5 rounded-2xl border text-center transition-all cursor-pointer ${
               compassFocus === "intellectual"
@@ -204,7 +226,7 @@ export const DiscoveryCompassPanel: React.FC<DiscoveryCompassProps> = ({
             type="button"
             onClick={() => {
               setCompassFocus("sports");
-              setSearchKeyword("captain");
+              setSearchKeyword("");
               setSearchSelectedHobbies(["Sailing & Boating", "Hiking & Nature Walks", "Pickleball & Tennis"]);
             }}
             className={`p-3.5 rounded-2xl border text-center transition-all cursor-pointer ${
@@ -220,8 +242,8 @@ export const DiscoveryCompassPanel: React.FC<DiscoveryCompassProps> = ({
             type="button"
             onClick={() => {
               setCompassFocus("cozy");
-              setSearchKeyword("wellness");
-              setSearchSelectedHobbies(["Sourdough Baking", "Organic Gardening", "Chai & Conversations"]);
+              setSearchKeyword("");
+              setSearchSelectedHobbies(["Organic Gardening", "Sourdough Baking", "Chai & Conversations"]);
             }}
             className={`p-3.5 rounded-2xl border text-center transition-all cursor-pointer ${
               compassFocus === "cozy"
@@ -236,8 +258,8 @@ export const DiscoveryCompassPanel: React.FC<DiscoveryCompassProps> = ({
             type="button"
             onClick={() => {
               setCompassFocus("romance");
-              setSearchKeyword("designer");
-              setSearchSelectedHobbies(["Watercolor Painting", "Sailing & Boating", "Couples Travel"]);
+              setSearchKeyword("");
+              setSearchSelectedHobbies(["Watercolor Painting", "Couples Travel", "Sailing & Boating"]);
             }}
             className={`p-3.5 rounded-2xl border text-center transition-all cursor-pointer ${
               compassFocus === "romance"
