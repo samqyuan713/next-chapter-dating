@@ -418,6 +418,69 @@ const FALLBACK_RESPONSES: Record<string, string[]> = {
 // API ROUTES
 // ----------------------------------------------------
 
+// Database Health & Data Integrity Check Route
+app.get("/api/health/db", async (req, res) => {
+  try {
+    const companionsList = await db.select().from(companions);
+    const usersList = await db.select().from(users);
+    const messagesList = await db.select().from(messages);
+    const compatibilityList = await db.select().from(compatibility);
+
+    res.json({
+      status: "healthy",
+      database: "connected",
+      timestamp: new Date().toISOString(),
+      counts: {
+        companions: companionsList.length,
+        users: usersList.length,
+        messages: messagesList.length,
+        compatibilityRecords: compatibilityList.length,
+      },
+      inspectUrls: {
+        users: "/api/db/table/users",
+        companions: "/api/db/table/companions",
+        messages: "/api/db/table/messages",
+        compatibility: "/api/db/table/compatibility"
+      }
+    });
+  } catch (error: any) {
+    console.error("Database health check error:", error);
+    res.status(500).json({
+      status: "error",
+      database: "disconnected or unreachable",
+      error: error?.message || "Unknown error"
+    });
+  }
+});
+
+// Table inspection endpoint to query individual database tables directly
+app.get("/api/db/table/:tableName", async (req, res) => {
+  const { tableName } = req.params;
+  try {
+    let data;
+    if (tableName === "users") {
+      data = await db.select().from(users);
+    } else if (tableName === "companions") {
+      data = await db.select().from(companions);
+    } else if (tableName === "messages") {
+      data = await db.select().from(messages);
+    } else if (tableName === "compatibility") {
+      data = await db.select().from(compatibility);
+    } else {
+      return res.status(400).json({ error: "Invalid table name. Allowed: users, companions, messages, compatibility" });
+    }
+
+    res.json({
+      table: tableName,
+      count: data.length,
+      rows: data
+    });
+  } catch (error: any) {
+    console.error(`Error querying table ${tableName}:`, error);
+    res.status(500).json({ error: error?.message || "Database query failed" });
+  }
+});
+
 // 1. Get Match profiles (dynamic from DB, falls back to prebaked)
 app.get("/api/matches", async (req, res) => {
   try {
