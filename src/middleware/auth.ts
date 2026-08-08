@@ -36,29 +36,58 @@ export const requireAuth = async (
     }
     req.user = decodedToken;
 
-    // 2. Synchronize user record in PostgreSQL (upsert)
+    // 2. Synchronize user record in PostgreSQL (upsert & case-insensitive email linking)
     const uid = decodedToken.uid;
-    const email = decodedToken.email || '';
+    const rawEmail = decodedToken.email || '';
+    const normalizedEmail = rawEmail.toLowerCase().trim();
 
     // Wrap query in robust error handling as mandated
     try {
-      const existingUsers = await db.select().from(users).where(eq(users.uid, uid));
-      let userRecord: typeof users.$inferSelect;
+      let existingUsers = await db.select().from(users).where(eq(users.uid, uid));
+      let userRecord: typeof users.$inferSelect | undefined;
 
       if (existingUsers.length === 0) {
-        // Insert new user record
-        const insertResult = await db.insert(users)
-          .values({
-            uid,
-            email,
-            name: decodedToken.name || email.split('@')[0],
-            interests: [],
-            values: [],
-          })
-          .returning();
-        userRecord = insertResult[0];
+        // If no user found by exact UID, check if a profile with the same email exists (case-insensitive)
+        if (normalizedEmail) {
+          const allUsers = await db.select().from(users);
+          const emailMatch = allUsers.filter(u => u.email && u.email.toLowerCase().trim() === normalizedEmail);
+
+          if (emailMatch.length > 0) {
+            // Update the existing user record with the new UID and normalized email
+            const updated = await db.update(users)
+              .set({ uid, email: normalizedEmail })
+              .where(eq(users.id, emailMatch[0].id))
+              .returning();
+            userRecord = updated[0];
+          }
+        }
+
+        if (!userRecord) {
+          // Insert new user record if no existing email record was found
+          const displayName = decodedToken.name || (normalizedEmail ? normalizedEmail.split('@')[0] : 'Companion');
+          const insertResult = await db.insert(users)
+            .values({
+              uid,
+              email: normalizedEmail,
+              name: displayName.charAt(0).toUpperCase() + displayName.slice(1),
+              interests: [],
+              values: [],
+            })
+            .returning();
+          userRecord = insertResult[0];
+        }
       } else {
         userRecord = existingUsers[0];
+        // Ensure email is set/normalized if missing
+        if (normalizedEmail && (!userRecord.email || userRecord.email !== normalizedEmail)) {
+          const updated = await db.update(users)
+            .set({ email: normalizedEmail })
+            .where(eq(users.id, userRecord.id))
+            .returning();
+          if (updated.length > 0) {
+            userRecord = updated[0];
+          }
+        }
       }
 
       if (!userRecord) {
