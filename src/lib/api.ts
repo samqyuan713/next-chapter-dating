@@ -1,7 +1,7 @@
 import { Capacitor } from '@capacitor/core';
 
-// Default production/shared server URL for Capacitor APK mobile apps to connect to the backend
-const DEFAULT_SERVER_URL = "https://ais-pre-j4os3vmz2eepnq6k2ymqpv-469255650912.asia-southeast1.run.app";
+// Default backend server URL for Capacitor APK mobile apps to connect to the active backend
+const DEFAULT_SERVER_URL = "https://ais-dev-j4os3vmz2eepnq6k2ymqpv-469255650912.asia-southeast1.run.app";
 
 /**
  * Returns a fully qualified API endpoint URL.
