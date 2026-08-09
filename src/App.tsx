@@ -219,6 +219,9 @@ export default function App() {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         setFbUser(user);
+        if (user.email) {
+          localStorage.setItem("saved_user_email", user.email.toLowerCase().trim());
+        }
         try {
           const token = await user.getIdToken();
           setIdToken(token);
@@ -227,10 +230,24 @@ export default function App() {
           console.error("Auth state synchronization error:", err);
         }
       } else {
-        setFbUser(null);
-        setIdToken(null);
-        setUserProfile(null);
-        setHasOnboarded(false);
+        const savedEmail = localStorage.getItem("saved_user_email");
+        if (savedEmail && savedEmail.trim() !== "") {
+          const emailTrimmed = savedEmail.toLowerCase().trim();
+          const token = `sandbox-token-${emailTrimmed}`;
+          const guestUser = {
+            uid: "sandbox-uid-" + emailTrimmed.replace(/[^a-zA-Z0-9]/g, "-"),
+            email: emailTrimmed,
+            displayName: emailTrimmed.split("@")[0]
+          };
+          setFbUser(guestUser as any);
+          setIdToken(token);
+          await fetchUserProfile(token);
+        } else {
+          setFbUser(null);
+          setIdToken(null);
+          setUserProfile(null);
+          setHasOnboarded(false);
+        }
       }
       setLoadingAuth(false);
     });
@@ -239,8 +256,9 @@ export default function App() {
 
   const fetchUserProfile = async (tokenOverride?: string) => {
     let activeToken = tokenOverride || idToken;
-    if (!activeToken && fbUser?.email) {
-      activeToken = `sandbox-token-${fbUser.email.toLowerCase().trim()}`;
+    const savedEmail = localStorage.getItem("saved_user_email") || fbUser?.email;
+    if (!activeToken && savedEmail) {
+      activeToken = `sandbox-token-${savedEmail.toLowerCase().trim()}`;
     }
     if (!activeToken) return;
 
@@ -295,7 +313,7 @@ export default function App() {
     setUserProfile((prev) => {
       const nextProfile = {
         name: updated.name !== undefined ? updated.name : (prev?.name || ""),
-        age: updated.age !== updated.age ? updated.age : (updated.age || prev?.age || 60),
+        age: updated.age !== undefined && updated.age !== null && updated.age !== "" ? Number(updated.age) : (prev?.age || 60),
         location: updated.location !== undefined ? updated.location : (prev?.location || ""),
         interests: Array.isArray(updated.interests) ? updated.interests : (prev?.interests || []),
         bio: updated.bio !== undefined ? updated.bio : (prev?.bio || ""),
@@ -313,8 +331,9 @@ export default function App() {
     }
 
     let activeToken = idToken;
-    if (!activeToken && fbUser?.email) {
-      activeToken = `sandbox-token-${fbUser.email.toLowerCase().trim()}`;
+    const savedEmail = localStorage.getItem("saved_user_email") || fbUser?.email;
+    if (!activeToken && savedEmail) {
+      activeToken = `sandbox-token-${savedEmail.toLowerCase().trim()}`;
     }
 
     if (!activeToken) return true;
