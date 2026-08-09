@@ -508,16 +508,16 @@ app.post("/api/profile", requireAuth, async (req: AuthRequest, res) => {
   try {
     const updated = await db.update(users)
       .set({
-        name: name || req.userDb.name,
-        age: age ? Number(age) : req.userDb.age,
+        name: name !== undefined ? name : req.userDb.name,
+        age: age !== undefined && age !== null && age !== "" ? Number(age) : req.userDb.age,
         location: location !== undefined ? location : req.userDb.location,
         relationshipGoal: relationshipGoal !== undefined ? relationshipGoal : req.userDb.relationshipGoal,
         bio: bio !== undefined ? bio : req.userDb.bio,
-        interests: interests || req.userDb.interests,
-        values: values || req.userDb.values,
+        interests: Array.isArray(interests) ? interests : req.userDb.interests,
+        values: Array.isArray(values) ? values : req.userDb.values,
         height: height ? Number(height) : req.userDb.height,
         weight: weight ? Number(weight) : req.userDb.weight,
-        gender: gender || req.userDb.gender,
+        gender: gender !== undefined ? gender : req.userDb.gender,
       })
       .where(eq(users.id, req.userDb.id))
       .returning();
