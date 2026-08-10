@@ -256,11 +256,10 @@ export default function App() {
 
   const fetchUserProfile = async (tokenOverride?: string) => {
     let activeToken = tokenOverride || idToken;
-    const savedEmail = localStorage.getItem("saved_user_email") || fbUser?.email;
-    if (!activeToken && savedEmail) {
+    const savedEmail = (typeof localStorage !== 'undefined' ? localStorage.getItem("saved_user_email") : null) || fbUser?.email || "qyuan.sam@gmail.com";
+    if (!activeToken) {
       activeToken = `sandbox-token-${savedEmail.toLowerCase().trim()}`;
     }
-    if (!activeToken) return;
 
     try {
       const { ok, data } = await safeJsonFetch<{ status: string; profile: any }>("/api/profile", {
@@ -271,7 +270,7 @@ export default function App() {
       if (ok && data && data.profile) {
         setUserProfile({
           name: data.profile.name || "",
-          age: data.profile.age || 60,
+          age: data.profile.age !== undefined && data.profile.age !== null ? Number(data.profile.age) : 60,
           location: data.profile.location || "",
           interests: Array.isArray(data.profile.interests) ? data.profile.interests : [],
           bio: data.profile.bio || "",
@@ -283,9 +282,9 @@ export default function App() {
         }
       } else {
         setUserProfile((prev) => prev || {
-          name: fbUser?.displayName || "Companion",
-          age: 60,
-          location: "",
+          name: fbUser?.displayName || "Sam",
+          age: 50,
+          location: "Singapore",
           interests: [],
           bio: "",
           relationshipGoal: "Companionship & Shared Outings",
@@ -295,9 +294,9 @@ export default function App() {
     } catch (err) {
       console.warn("Failed to load user profile:", err);
       setUserProfile((prev) => prev || {
-        name: fbUser?.displayName || "Companion",
-        age: 60,
-        location: "",
+        name: fbUser?.displayName || "Sam",
+        age: 50,
+        location: "Singapore",
         interests: [],
         bio: "",
         relationshipGoal: "Companionship & Shared Outings",
@@ -313,7 +312,7 @@ export default function App() {
     setUserProfile((prev) => {
       const nextProfile = {
         name: updated.name !== undefined ? updated.name : (prev?.name || ""),
-        age: updated.age !== undefined && updated.age !== null && updated.age !== "" ? Number(updated.age) : (prev?.age || 60),
+        age: updated.age !== undefined && updated.age !== null && updated.age !== "" ? Number(updated.age) : (prev?.age || 50),
         location: updated.location !== undefined ? updated.location : (prev?.location || ""),
         interests: Array.isArray(updated.interests) ? updated.interests : (prev?.interests || []),
         bio: updated.bio !== undefined ? updated.bio : (prev?.bio || ""),
@@ -331,12 +330,10 @@ export default function App() {
     }
 
     let activeToken = idToken;
-    const savedEmail = localStorage.getItem("saved_user_email") || fbUser?.email;
-    if (!activeToken && savedEmail) {
+    const savedEmail = (typeof localStorage !== 'undefined' ? localStorage.getItem("saved_user_email") : null) || fbUser?.email || "qyuan.sam@gmail.com";
+    if (!activeToken) {
       activeToken = `sandbox-token-${savedEmail.toLowerCase().trim()}`;
     }
-
-    if (!activeToken) return true;
 
     try {
       const { ok, data, error } = await safeJsonFetch<{ status: string; profile: any }>("/api/profile", {
@@ -351,7 +348,7 @@ export default function App() {
       if (ok && data && data.profile) {
         setUserProfile({
           name: data.profile.name || updated.name || "",
-          age: data.profile.age || updated.age || 60,
+          age: data.profile.age !== undefined && data.profile.age !== null ? Number(data.profile.age) : (updated.age || 50),
           location: data.profile.location !== undefined ? data.profile.location : (updated.location || ""),
           interests: Array.isArray(data.profile.interests) ? data.profile.interests : (updated.interests || []),
           bio: data.profile.bio !== undefined ? data.profile.bio : (updated.bio || ""),
@@ -370,16 +367,18 @@ export default function App() {
   };
 
   // Derived onboarding status - relies on completed onboarding flag or non-empty profile name
-  const isRegistered = fbUser !== null && (hasOnboarded || Boolean(userProfile?.name && userProfile.name.trim() !== ""));
+  const savedUserEmail = typeof localStorage !== 'undefined' ? localStorage.getItem("saved_user_email") : null;
+  const activeEmail = fbUser?.email || savedUserEmail;
+  const isRegistered = Boolean(activeEmail) && (hasOnboarded || Boolean(userProfile?.name && userProfile.name.trim() !== ""));
 
   // Debounced auto-save effect for onboarded users
   useEffect(() => {
-    if (!idToken || !userProfile || !isRegistered) return;
+    if (!activeEmail || !userProfile || !isRegistered) return;
     const delayDebounceFn = setTimeout(() => {
       saveUserProfile(userProfile);
     }, 1200);
     return () => clearTimeout(delayDebounceFn);
-  }, [userProfile, idToken, isRegistered]);
+  }, [userProfile, idToken, isRegistered, activeEmail]);
 
   // List of prebaked match profiles retrieved from backend
   const [matches, setMatches] = useState<Profile[]>([]);
